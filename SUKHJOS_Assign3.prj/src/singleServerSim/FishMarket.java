@@ -371,10 +371,8 @@ public FishMarket(double iNTERARRIVAL_TIME,
 public void run(int simulationTime) {
 	Event_Queue.add( new Market_Arrival() );
 	while(clock < simulationTime) {
-		
-		Event event = Event_Queue.poll();
-		event.process();
-		System.out.println(event.toString());
+		Event_Queue.poll().process();
+
 	}
 
 	System.out.println("ATM Queue Average Wait Time: " + stats.getAverageWaitTime("ATM")/60);
