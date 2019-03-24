@@ -17,8 +17,14 @@ public class Statistics{
 
 	private static final long serialVersionUID = -1447896051344243508L;
 	
-	private HashMap<String, ArrayList<Integer>[]> waitingTimes; 
+	private HashMap<String, ArrayList<Integer>> waitingTimes; 
 
+	public boolean addWaitingTime(String key, Integer time) {
+		if(this.waitingTimes.containsKey(key) == false)
+			return false;
+		return this.waitingTimes.get(key).add(time);
+	}
+	
 	/** Default Constructor.
 	 *  Instantiates a statistics object with a list of ATM waiting times,
 	 *  a list of Shopping waiting times, and a list of Checkout waiting times
@@ -29,6 +35,10 @@ public class Statistics{
 		mapBlueprint.put("ATM", 1);
 		mapBlueprint.put("Shopping", 1);
 		mapBlueprint.put("Checkout", 1);
+		mapBlueprint.put("ATM_QueueSize", 1);
+		mapBlueprint.put("Shopping_QueueSize", 1);
+		mapBlueprint.put("Checkout_QueueSize", 1);
+		mapBlueprint.put("Market", 1);
 		
 		this.waitingTimes = initializeHashMap(mapBlueprint);
 
@@ -42,29 +52,17 @@ public class Statistics{
 	 * @param blueprint the map containing the keys and arraySize of the array
 	 * @return a hashMap of string and arrayList<integers>
 	 */
-	private HashMap<String,ArrayList<Integer>[]> initializeHashMap(Map<String, Integer> blueprint) {
-		HashMap<String,ArrayList<Integer>[]> hashMap = new HashMap<String,ArrayList<Integer>[]>();
+	private HashMap<String,ArrayList<Integer>> initializeHashMap(Map<String, Integer> blueprint) {
+		HashMap<String,ArrayList<Integer>> hashMap = new HashMap<String,ArrayList<Integer>>();
 		Iterator<Map.Entry<String,Integer>> it = blueprint.entrySet().iterator();
 		while(it.hasNext()) {
 			Map.Entry<String, Integer> pair = it.next();
-			Integer arrSize = pair.getValue();
-			hashMap.put( pair.getKey(), initializeArrayOfArrayList(arrSize) );
+			hashMap.put( pair.getKey(), new ArrayList<Integer>() );
 		}
 		return hashMap;
 	}
 	
-	/** Initializes an array of arrayLists
-	 * 
-	 * @param arrSize the array size (the number of arrayLists to instantiate 
-	 * in the array)
-	 * @return an instance of array of ArrayLists
-	 */
-	private ArrayList<Integer>[] initializeArrayOfArrayList(Integer arrSize) {
-		ArrayList<Integer>[] arrayOfArrayList = new ArrayList[arrSize];
-		for(ArrayList<Integer> list : arrayOfArrayList)
-			list = new ArrayList<Integer>();
-		return arrayOfArrayList;
-	}
+
 
 	/** Get the average value of an ArrayList of Integers
 	 * 
@@ -79,26 +77,15 @@ public class Statistics{
 		return total / size;
 	}
 	
-	/** Get the average value of an array of ArrayLists containing Integers
-	 * 
-	 * @param list the array of ArrayLists to get the average of
-	 * @return the average value of the arrayList
-	 */
-	private double getAverage(ArrayList<Integer>[] arrayOfLists) {
-		ArrayList<Integer> combinedList = new ArrayList<Integer>();
-		for(ArrayList<Integer> item : arrayOfLists)
-			combinedList.addAll(item);
-		return getAverage(combinedList);
-	}	
-	
 	/** Get the average wait time of entire visit to the fish market
 	 * 
 	 * @return the average time spent waiting whilst at the fish mark
 	 */
 	public double getAverageWaitTime() {
 		double avgTotalWaitTime = 0;
-		for(ArrayList<Integer>[] arrayOfLists : waitingTimes.values())
-			avgTotalWaitTime = getAverage(arrayOfLists);
+		
+		for(ArrayList<Integer> arrayOfLists : waitingTimes.values())
+			avgTotalWaitTime += getAverage(arrayOfLists);
 		return avgTotalWaitTime;
 	}
 	
@@ -107,8 +94,11 @@ public class Statistics{
 	 * @param phase the simulation phase from which to get the average time
 	 *  spent in queue
 	 * @return the average time spent waiting in queue at the specified phase
+	 * @throws Exception 
 	 */
-	public double getAverageWaitTime(String phase) {
+	public double getAverageWaitTime(String phase) throws RuntimeException {
+		if(this.waitingTimes.containsKey(phase) == false)
+			throw new RuntimeException();
 		return getAverage( waitingTimes.get(phase) );
 	}
 	
