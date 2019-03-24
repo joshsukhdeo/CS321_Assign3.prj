@@ -20,10 +20,6 @@ public abstract class Event implements Comparable<Event> {
 
 		private static final long serialVersionUID = 8156284894755258434L;
 		
-		private final double INTERARRIVAL_TIME = 120.0;
-		private final double ATM_AVG_SERVICE_TIME = 30.0;
-		private final double AVG_SHOPPING_TIME_PER_FISH = 30.0;
-		private final double AVG_CHECKOUT_TIME_PER_FISH = 30.0;
 		
 		/** Generates a random value from an exponential distribution
 		 * that is generated from the mean value supplied
@@ -40,18 +36,27 @@ public abstract class Event implements Comparable<Event> {
 	}
 	
 	private int time;
+	
+	private Client client;
 
 	public int getTime() {
 		return time;
 	}
+	
+	public Client getClient() {
+		return client;
+	}
 
+	public void setClient(Client client) {
+		this.client = client;
+	}
 	
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
 	@Override
 	public String toString() {
-		return "Event [time=" + time + ", getClass()=" + getClass() + "]";
+		return getClass().getSimpleName()+" [time=" + this.time + ", client=" + this.client + "]";
 	}
 
 	public Event(int time) {
@@ -60,6 +65,7 @@ public abstract class Event implements Comparable<Event> {
 	
 	public Event(Client client) {
 		this.time = generateScheduledTime(client);
+		this.setClient(client);
 	}
 	
 	/** Generates a time to schedule an Event for

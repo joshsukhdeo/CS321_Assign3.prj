@@ -6,9 +6,8 @@ package singleServerSim;
 
 import java.util.HashMap;
 import java.util.PriorityQueue;
-import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
+
 
 /**
  * @author joshs
@@ -47,6 +46,7 @@ public class FishMarket {
 		public void process() {
 			clock = getTime();
 			Client newClient = new Client(clock);
+			this.setClient(newClient);
 			scheduleNextEvent(newClient);
 			
 			Event_Queue.add( new Market_Arrival() );
@@ -72,14 +72,14 @@ public class FishMarket {
 					Event_Queue.add(new ATM_Departure(client));
 				}
 				else {
-					ATM_Queue.add(client);
+					getServerQueue("ATM").add(client);
 				}
 			}
 			else {
 				if(isServerFree("Shopping"))
 					Event_Queue.add( new Shopping_Departure(client) );
 				else
-					Shopping_Queue.add(client);
+					getServerQueue("Shopping").add(client);
 			}
 		}
 
@@ -103,7 +103,7 @@ public class FishMarket {
 		 */
 		public ATM_Departure(Client client) {
 			super(client);
-			setServer(TYPE, client);
+			assignToServer(TYPE, client);
 		}
 		
 		/* (non-Javadoc)
@@ -121,19 +121,23 @@ public class FishMarket {
 		@Override
 		public void process() {
 			clock = getTime();
-			Client currentClient = getServer(TYPE);
+			Client currentClient = getClient();
+			// Stats for the current client's queue experience
+			Integer queueWaitingTime = clock - currentClient.getPhaseArrivalTime();
+			stats.addWaitingTime(TYPE, queueWaitingTime);
+			stats.addQueueSize(TYPE, getServerQueue(TYPE).size());
+			
 			int moneyWithdrawn = (int) Math.random() * 31 + 10;
 			currentClient.addMoney(moneyWithdrawn);
+			
 			scheduleNextEvent(currentClient);
 			
-			if(!ATM_Queue.isEmpty()) {
-				Client nextClient = ATM_Queue.poll();
+			if(!getServerQueue(TYPE).isEmpty()) {
+				Client nextClient = getServerQueue(TYPE).poll();
 
 				Event_Queue.add( new ATM_Departure(nextClient) );
 				
-				Integer queueWaitingTime = clock - nextClient.getPhaseArrivalTime();
-				stats.addWaitingTime(TYPE, queueWaitingTime);
-				stats.addWaitingTime(TYPE+"_QueueSize", ATM_Queue.size());
+
 			}
 		}
 
@@ -144,11 +148,11 @@ public class FishMarket {
 		@Override
 		protected void scheduleNextEvent(Client client) {
 			client.setPhaseArrivalTime(clock);
-			setServer(TYPE, null);
+			removeFromServer(TYPE, client);
 			if(isServerFree("Shopping")) {
 				Event_Queue.add( new Shopping_Departure(client) );
 			} else {
-				Shopping_Queue.add(client);
+				getServerQueue("Shopping").add(client);
 			}
 		}
 	
@@ -170,7 +174,7 @@ public class FishMarket {
 		 */
 		public Shopping_Departure(Client client) {
 			super(client);
-			setServer(TYPE, client);
+			assignToServer(TYPE, client);
 		}
 		
 		
@@ -190,20 +194,20 @@ public class FishMarket {
 		@Override
 		public void process() {
 			clock = getTime();
-			Client currentClient = getServer(TYPE);
+			Client currentClient = getClient();
 			int fishAddedToCart =  (int) (currentClient.getMoney() / PRICE_PER_FISH);
 			currentClient.setFish(fishAddedToCart);
+			
+			// Stats for the current client's queue experience
+			Integer queueWaitingTime = clock - currentClient.getPhaseArrivalTime();
+			stats.addWaitingTime(TYPE, queueWaitingTime);
+			stats.addQueueSize(TYPE, getServerQueue(TYPE).size());
+			
 			scheduleNextEvent(currentClient);
 			
-			if(!Shopping_Queue.isEmpty()) {
-				Client nextClient = Shopping_Queue.poll();
+			if(!getServerQueue(TYPE).isEmpty()) {
+				Client nextClient = getServerQueue(TYPE).poll();
 				Event_Queue.add( new Shopping_Departure(nextClient) );
-				
-				// Handle stats for Shopping queue time
-				Integer queueWaitingTime = clock - nextClient.getPhaseArrivalTime();
-				stats.addWaitingTime(TYPE, queueWaitingTime);
-				//System.out.println("Shopping Qavg: "+stats.getAverageWaitTime(TYPE+"_QueueSize") + "ShooppingQueue: "+ Shopping_Queue.size());
-				stats.addWaitingTime(TYPE+"_QueueSize", Shopping_Queue.size());
 			}
 		}
 
@@ -213,13 +217,13 @@ public class FishMarket {
 		 */
 		@Override
 		protected void scheduleNextEvent(Client client) {
-			setServer(TYPE, null);
+			removeFromServer(TYPE, client);
 			client.setPhaseArrivalTime(clock);
 			
 			if(isServerFree("Checkout")) {
 				Event_Queue.add( new Checkout_Departure(client) );
 			} else {
-				Checkout_Queue.add(client);
+				getServerQueue("Checkout").add(client);
 			}
 			
 		}
@@ -242,15 +246,7 @@ public class FishMarket {
 		 */
 		public Checkout_Departure(Client client) {
 			super(client);
-			setServer(TYPE, client);
-			
-			// Handle Stats for the Checkout queue
-			Integer queueWaitingTime = clock - client.getPhaseArrivalTime();
-			
-			stats.addWaitingTime(TYPE, queueWaitingTime);
-			stats.addWaitingTime(TYPE+"_QueueSize", Checkout_Queue.size());
-			//System.out.println("Checkout Qavg: "+stats.getAverageWaitTime(TYPE+"_QueueSize") + "CheckoutQueue: "+ Checkout_Queue.size());
-			//System.out.println(client);
+			assignToServer(TYPE, client);
 		}
 		
 		/* (non-Javadoc)
@@ -267,14 +263,19 @@ public class FishMarket {
 		@Override
 		public void process() {
 			clock = getTime();
-			Client currentClient = getServer(TYPE);
+			Client currentClient = getClient();
 			int totalPrice =  (int) (currentClient.getFish() * PRICE_PER_FISH);
 			currentClient.removeMoney(totalPrice);
-			System.out.println(currentClient);
+			
+			// Handle Stats for the Checkout queue
+			Integer queueWaitingTime = clock - currentClient.getPhaseArrivalTime();
+			
+			stats.addWaitingTime(TYPE, queueWaitingTime);
+			stats.addQueueSize(TYPE, getServerQueue(TYPE).size());
 			scheduleNextEvent(currentClient);
 			
-			if(!Checkout_Queue.isEmpty()) {
-				Client nextClient = Checkout_Queue.poll();
+			if(!getServerQueue(TYPE).isEmpty()) {
+				Client nextClient = getServerQueue(TYPE).poll();
 				Event_Queue.add( new Checkout_Departure(nextClient) );
 				
 
@@ -288,12 +289,11 @@ public class FishMarket {
 		 */
 		@Override
 		protected void scheduleNextEvent(Client client) {
-			setServer(TYPE, null);
+			removeFromServer(TYPE, client);
 			client.setPhaseArrivalTime(clock);
 			
 			// Handle stats for time spent in the market when a client leaves
-			Integer timeSpentInMarket = clock - client.getArrivalTime();
-			stats.addWaitingTime("Market", timeSpentInMarket);
+			stats.addTimeSpent(clock - client.getArrivalTime());
 		}	
 
 	}
@@ -307,8 +307,6 @@ private double PRICE_PER_FISH = 10;
 private int clock = 0;
 private Statistics stats;
 private PriorityQueue<Event> Event_Queue;
-private ConcurrentLinkedQueue<Client>ATM_Queue, Shopping_Queue, Checkout_Queue;
-private Client ATM_Server, Shopping_Server, Checkout_Server;
 private HashMap<String, ConcurrentLinkedQueue<Client>> serverQueue;
 private HashMap<String, Client> server; 
 
@@ -317,16 +315,18 @@ private boolean isServerFree(String type) {
 	return (server.get(type) == null);
 }
 
-private Client getServer(String type) {
-	return server.get(type);
-}
 
-private Client setServer(String type, Client client) {
+
+private Client assignToServer(String type, Client client) {
 	return server.put(type,client);
 }
 
-private Client getServerQueue(String type) {
-	return server.get(type);
+private Client removeFromServer(String type, Client client) {
+	return server.put(type,null);
+}
+
+private ConcurrentLinkedQueue<Client> getServerQueue(String type) {
+	return serverQueue.get(type);
 }
 
 
@@ -361,9 +361,6 @@ public FishMarket(double iNTERARRIVAL_TIME,
 	serverQueue.put("ATM", new ConcurrentLinkedQueue<Client>());
 	serverQueue.put("Shopping", new ConcurrentLinkedQueue<Client>());
 	serverQueue.put("Checkout", new ConcurrentLinkedQueue<Client>());
-	ATM_Queue = new ConcurrentLinkedQueue<Client>();
-	Shopping_Queue = new ConcurrentLinkedQueue<Client>();
-	Checkout_Queue = new ConcurrentLinkedQueue<Client>();
 	stats = new Statistics();
 }
 
@@ -374,27 +371,20 @@ public FishMarket(double iNTERARRIVAL_TIME,
 public void run(int simulationTime) {
 	Event_Queue.add( new Market_Arrival() );
 	while(clock < simulationTime) {
-		//if(clock < 1000)
-		//System.out.println("Clk: "+clock+" EventQueue: "+Event_Queue.toString());
-		/*
-		try {
-			TimeUnit.SECONDS.sleep(1);
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		*/
-		Event_Queue.poll().process();
+		
+		Event event = Event_Queue.poll();
+		event.process();
+		System.out.println(event.toString());
 	}
 
 	System.out.println("ATM Queue Average Wait Time: " + stats.getAverageWaitTime("ATM")/60);
 	System.out.println("Shopping Queue Average Wait Time: " + stats.getAverageWaitTime("Shopping")/60);
 	System.out.println("Checkout Queue Average Wait Time: " + stats.getAverageWaitTime("Checkout")/60);
-	System.out.println("ATM Queue Average Size: " + stats.getAverageWaitTime("ATM_QueueSize"));
-	System.out.println("Shopping Queue Average Size: " + stats.getAverageWaitTime("Shopping_QueueSize"));
-	System.out.println("Checkout Queue Average Size: " + stats.getAverageWaitTime("Checkout_QueueSize"));
+	System.out.println("ATM Queue Average Size: " + stats.getAverageQueueSize("ATM"));
+	System.out.println("Shopping Queue Average Size: " + stats.getAverageQueueSize("Shopping"));
+	System.out.println("Checkout Queue Average Size: " + stats.getAverageQueueSize("Checkout"));
 	System.out.println();
-	System.out.println("Average time spent in market : " + stats.getAverageWaitTime("Market")/60);
+	System.out.println("Average time spent in market : " + stats.getAverageTimeSpent()/60);
 }
 
 

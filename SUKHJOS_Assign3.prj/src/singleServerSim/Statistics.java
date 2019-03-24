@@ -6,8 +6,6 @@ package singleServerSim;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
-import java.util.Iterator;
 
 /**
  * @author joshs
@@ -15,14 +13,23 @@ import java.util.Iterator;
  */
 public class Statistics{
 
-	private static final long serialVersionUID = -1447896051344243508L;
+	private HashMap<String, ArrayList<Integer>> waitingTimes, queueSizes; 
+	private ArrayList<Integer> timeSpentList;
 	
-	private HashMap<String, ArrayList<Integer>> waitingTimes; 
-
+	public boolean addTimeSpent(Integer time) {
+		return timeSpentList.add(time);
+	}
+	
 	public boolean addWaitingTime(String key, Integer time) {
 		if(this.waitingTimes.containsKey(key) == false)
 			return false;
 		return this.waitingTimes.get(key).add(time);
+	}
+	
+	public boolean addQueueSize(String key, Integer time) {
+		if(this.queueSizes.containsKey(key) == false)
+			return false;
+		return this.queueSizes.get(key).add(time);
 	}
 	
 	/** Default Constructor.
@@ -31,38 +38,16 @@ public class Statistics{
 	 */
 	public Statistics() {
 		super();
-		Map<String,Integer> mapBlueprint = new HashMap<String,Integer>();
-		mapBlueprint.put("ATM", 1);
-		mapBlueprint.put("Shopping", 1);
-		mapBlueprint.put("Checkout", 1);
-		mapBlueprint.put("ATM_QueueSize", 1);
-		mapBlueprint.put("Shopping_QueueSize", 1);
-		mapBlueprint.put("Checkout_QueueSize", 1);
-		mapBlueprint.put("Market", 1);
-		
-		this.waitingTimes = initializeHashMap(mapBlueprint);
-
-	}
-	
-	/** Initializes a HashMap<String,ArrayList<Integer>[]> from a 
-	 *  a Map<String, Integer>, where the size of ArrayList<Integer>[]
-	 *  is determined by the Map's int value. 
-	 *  (Map<String, Integer> has pairs of (Key to set, ArraySize to set)
-	 * 
-	 * @param blueprint the map containing the keys and arraySize of the array
-	 * @return a hashMap of string and arrayList<integers>
-	 */
-	private HashMap<String,ArrayList<Integer>> initializeHashMap(Map<String, Integer> blueprint) {
-		HashMap<String,ArrayList<Integer>> hashMap = new HashMap<String,ArrayList<Integer>>();
-		Iterator<Map.Entry<String,Integer>> it = blueprint.entrySet().iterator();
-		while(it.hasNext()) {
-			Map.Entry<String, Integer> pair = it.next();
-			hashMap.put( pair.getKey(), new ArrayList<Integer>() );
+		String[] queueList = {"ATM","Shopping","Checkout"};
+		waitingTimes = new HashMap<String, ArrayList<Integer>>();
+		this.queueSizes = new HashMap<String, ArrayList<Integer>>();
+		for(String item : queueList) {
+			waitingTimes.put(item, new ArrayList<Integer>());
+			queueSizes.put(item, new ArrayList<Integer>());
 		}
-		return hashMap;
+		timeSpentList = new ArrayList<Integer>();
+		
 	}
-	
-
 
 	/** Get the average value of an ArrayList of Integers
 	 * 
@@ -81,12 +66,8 @@ public class Statistics{
 	 * 
 	 * @return the average time spent waiting whilst at the fish mark
 	 */
-	public double getAverageWaitTime() {
-		double avgTotalWaitTime = 0;
-		
-		for(ArrayList<Integer> arrayOfLists : waitingTimes.values())
-			avgTotalWaitTime += getAverage(arrayOfLists);
-		return avgTotalWaitTime;
+	public double getAverageTimeSpent() {
+		return getAverage(timeSpentList);
 	}
 	
 	/** Get the average wait time during a given phase of the simulation
@@ -101,6 +82,17 @@ public class Statistics{
 			throw new RuntimeException();
 		return getAverage( waitingTimes.get(phase) );
 	}
-	
+	/** Get the average queue size during a given phase of the simulation
+	 * 
+	 * @param phase the simulation phase from which to get the average time
+	 *  spent in queue
+	 * @return the average time spent waiting in queue at the specified phase
+	 * @throws Exception 
+	 */
+	public double getAverageQueueSize(String phase) throws RuntimeException {
+		if(this.queueSizes.containsKey(phase) == false)
+			throw new RuntimeException();
+		return getAverage( queueSizes.get(phase) );
+	}
 	
 }
